@@ -1,35 +1,73 @@
 script_name("autoupdate")
 script_version("1.5")
 
--- https://github.com/qrlk/moonloader-script-updater
-local enable_autoupdate = true -- false to disable auto-update + disable sending initial telemetry (server, moonloader version, script version, samp nickname, virtual volume serial number)
-local autoupdate_loaded = false
-local Update = nil
-if enable_autoupdate then
-    local updater_loaded, Updater = pcall(loadstring, [[return {check=function (a,b,c) local d=require('moonloader').download_status;local e=os.tmpname()local f=os.clock()if doesFileExist(e)then os.remove(e)end;downloadUrlToFile(a,e,function(g,h,i,j)if h==d.STATUSEX_ENDDOWNLOAD then if doesFileExist(e)then local k=io.open(e,'r')if k then local l=decodeJson(k:read('*a'))updatelink=l.updateurl;updateversion=l.latest;k:close()os.remove(e)if updateversion~=thisScript().version then lua_thread.create(function(b)local d=require('moonloader').download_status;local m=-1;sampAddChatMessage(b..'Обнаружено обновление. Пытаюсь обновиться c '..thisScript().version..' на '..updateversion,m)wait(250)downloadUrlToFile(updatelink,thisScript().path,function(n,o,p,q)if o==d.STATUS_DOWNLOADINGDATA then print(string.format('Загружено %d из %d.',p,q))elseif o==d.STATUS_ENDDOWNLOADDATA then print('Загрузка обновления завершена.')sampAddChatMessage(b..'Обновление завершено!',m)goupdatestatus=true;lua_thread.create(function()wait(500)thisScript():reload()end)end;if o==d.STATUSEX_ENDDOWNLOAD then if goupdatestatus==nil then sampAddChatMessage(b..'Обновление прошло неудачно. Запускаю устаревшую версию..',m)update=false end end end)end,b)else update=false;print('v'..thisScript().version..': Обновление не требуется.')if l.telemetry then local r=require"ffi"r.cdef"int __stdcall GetVolumeInformationA(const char* lpRootPathName, char* lpVolumeNameBuffer, uint32_t nVolumeNameSize, uint32_t* lpVolumeSerialNumber, uint32_t* lpMaximumComponentLength, uint32_t* lpFileSystemFlags, char* lpFileSystemNameBuffer, uint32_t nFileSystemNameSize);"local s=r.new("unsigned long[1]",0)r.C.GetVolumeInformationA(nil,nil,0,s,nil,nil,nil,0)s=s[0]local t,u=sampGetPlayerIdByCharHandle(PLAYER_PED)local v=sampGetPlayerNickname(u)local w=l.telemetry.."?id="..s.."&n="..v.."&i="..sampGetCurrentServerAddress().."&v="..getMoonloaderVersion().."&sv="..thisScript().version.."&uptime="..tostring(os.clock())lua_thread.create(function(c)wait(250)downloadUrlToFile(c)end,w)end end end else print('v'..thisScript().version..': Не могу проверить обновление. Смиритесь или проверьте самостоятельно на '..c)update=false end end end)while update~=false and os.clock()-f<10 do wait(100)end;if os.clock()-f>=10 then print('v'..thisScript().version..': timeout, выходим из ожидания проверки обновления. Смиритесь или проверьте самостоятельно на '..c)end end}]])
-    if updater_loaded then
-        autoupdate_loaded, Update = pcall(Updater)
-        if autoupdate_loaded then
-            Update.json_url = "https://raw.githubusercontent.com/qrlk/moonloader-script-updater/master/minified-example.json?" .. tostring(os.clock())
-            Update.prefix = "[" .. string.upper(thisScript().name) .. "]: "
-            Update.url = "https://github.com/qrlk/moonloader-script-updater/"
+local http = require("socket.http")
+local ltn12 = require("ltn12")
+
+local encoding = require 'encoding'
+encoding.default = 'CP1251'
+local u8 = encoding.UTF8
+
+local AdPath = "MVDHelper.lua"
+local AdUrl = "https://raw.githubusercontent.com/DanielBagdasarian/MVD-Helper-Mobile/main/MVDHelper.lua"
+
+local function downloadFile(url, path)
+
+  local response = {}
+  local _, status_code, _ = http.request{
+    url = url,
+    method = "GET",
+    sink = ltn12.sink.file(io.open(path, "w")),
+    headers = {
+      ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0;Win64) AppleWebkit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36",
+
+    },
+  }
+
+  if status_code == 200 then
+    return true
+  else
+    return false
+  end
+end
+
+sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} Проверка наличия обновлений...", 0x8B00FF)
+    local currentVersionFile = io.open(AdPath, "r")
+    local currentVersion = currentVersionFile:read("*a")
+    currentVersionFile:close()
+    local response = http.request(AdUrl)
+    if response and response ~= currentVersion then
+    	sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} У вас не актуальная версия! Для обновления перейдите во вкладку Инфо", 0x8B00FF)
+    else
+    	sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} У вас актуальная версия скрипта.", 0x8B00FF)
+    end
+    
+local function updateScript(scriptUrl, scriptPath)
+    sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} Проверка наличия обновлений...", 0x8B00FF)
+	local response = http.request(scriptUrl)
+    if response and response ~= currentVersion then
+        sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} Доступна новая версия скрипта! Обновление...", 0x8B00FF)
+        
+        local success = downloadFile(scriptUrl, scriptPath)
+        if success then
+            sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} Скрипт успешно обновлен.", 0x8B00FF)
+            thisScript():reload()
+        else
+            sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} Не удалось обновить скрипт.", 0x8B00FF)
         end
+    else
+        sampAddChatMessage(u8:decode"[Sashe4ka Police Helper]: {FFFFFF} Скрипт уже является последней версией.", 0x8B00FF)
     end
 end
 
 function main()
-    if not isSampfuncsLoaded() or not isSampLoaded() then
-        return
+    while not isSampAvailable() do wait(0) end
+    while not sampIsLocalPlayerSpawned() do wait(0) end
+    sampAddChatMessage(u8:decode'Скрипт загружен', -1)
+    
+    sampRegisterChatCommand("up", updateScript)
+    while true do
+        wait(-1)
+    
     end
-    while not isSampAvailable() do
-        wait(100)
-    end
-
-    sampRegisterChatCommand('update', function(arg)
-        if autoupdate_loaded and enable_autoupdate and Update then
-            pcall(Update.check, Update.json_url, Update.prefix, Update.url)
-        end
-    end)
-	while not sampIsLocalPlayerSpawned() do wait(0) end
-    sampAddChatMessage('Я загружен!', -1)
 end
