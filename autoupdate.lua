@@ -8,8 +8,8 @@ local encoding = require 'encoding'
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
 
-local AdPath = "MVDHelper.lua"
-local AdUrl = "https://raw.githubusercontent.com/DanielBagdasarian/MVD-Helper-Mobile/main/MVDHelper.lua"
+local AdPath = "autoupdate.lua"
+local AdUrl = "https://raw.githubusercontent.com/Theopochka/update-lavka/main/autoupdate.lua"
 
 local function downloadFile(url, path)
 
